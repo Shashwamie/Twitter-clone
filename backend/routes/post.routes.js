@@ -9,7 +9,7 @@ router.get("/following", protectRoute, getFollowingPosts)
 router.get("/likes/:id", protectRoute, getLikedPosts)
 router.get("/user/:username", protectRoute, getUserPosts)
 router.post("/create", protectRoute, createPost);
-router.post("/:id", protectRoute, deletePost);
+router.delete("/:id", protectRoute, deletePost);
 router.post("/like/:id", protectRoute, likeUnlikePost);
 router.post("/comments/:id", protectRoute, commentOnPost);
 
