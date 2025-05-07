@@ -98,8 +98,15 @@ export const commentOnPost = async (req, res) => {
             })
             await notification.save();
         }
+        const updatedPost = await Post.findById(postId).populate({
+            path: "user",
+            select: "-password"
+        }).populate({
+            path: "comments.user",
+            select: "-password"
+        })
 
-        res.status(200).json(post);
+        res.status(200).json(updatedPost);
     }
     catch(error){
         console.log("Error in likeUnlikePost: ", error.message)
