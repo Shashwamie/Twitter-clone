@@ -1,36 +1,62 @@
 import { Link } from "react-router-dom"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
+import { toast } from "react-hot-toast"
+import { formatPostDate } from "../../utils/date/index"
 
 import { IoSettingsOutline } from "react-icons/io5"
+import { FaRegComment } from "react-icons/fa"
 import { FaUser } from "react-icons/fa"
 import { FaHeart } from "react-icons/fa6"
 
 const NotificationPage = () => {
-    const isLoading = false;
-    const notifications = [
-        {
-            _id: "1",
-            from:{
-                _id: "1",
-                username: "johndoe",
-                profileImg: "/avatars/boy2.png",
-            },
-            type: "follow",
-        },
-        {
-            _id: "2",
-            from:{
-                _id: "2",
-                username: "janedoe",
-                profileImg: "/avatars/girl1.png",
-            },
-            type: "like",
-        },
-    ];
+    const queryCient = useQueryClient();
 
-    const deleteNotifications = () => {
-        alert("All notifications deleted");
-    };
+    const { data:notifications, isLoading } = useQuery({
+        queryKey: ["notifications"],
+        queryFn: async() => {
+            try{
+                const res = await fetch("/api/notifications");
+                const data = await res.json();
+
+                if(!res.ok){
+                    throw new Error(data.error || "Something went wrong");
+                }
+
+                return data;
+            }
+            catch(error){
+                throw new Error(error.message)
+            }
+        },
+    })
+
+    const { mutate:deleteNotifications } = useMutation({
+        mutationFn: async() => {
+            try{
+                const res = await fetch("/api/notifications", {
+                    method: "DELETE",
+                })
+                const data = await res.json();
+
+                if(!res.ok){
+                    throw new Error(data.error || "Something went wrong");
+                }
+
+                return data;
+            }
+            catch(error){
+                throw new Error(error.message)
+            }
+        },
+        onSuccess:() => {
+            toast.success("Notifications deleted successfully")
+            queryCient.invalidateQueries({queryKey: ["notifications"]})
+        },
+        onError: (error) => {
+            toast.error(error.message)
+        },
+    })
 
   return (
     <>
@@ -60,9 +86,11 @@ const NotificationPage = () => {
             {notifications?.length === 0 && <div className="text-center p-4 font-bold">No notifications :(</div>}
             {notifications?.map((notification) => (
                 <div className="border-b border-gray-700" key={notification._id}>
+                    <span className="float-right p-1 text-slate-500">{formatPostDate(notification.createdAt)}</span>
                     <div className="flex gap-2 p-4">
                         {notification.type === "follow" && <FaUser className="w-7 h-7 text-primary" />}
                         {notification.type === "like" && <FaHeart className="w-7 h-7 text-red-500" />}
+                        {notification.type == "comment" && <FaRegComment className="w-7 h-7 text-primary" />}
                         <Link to={`/profile/${notification.from.username}`}>
                             <div className="avatar">
                                 <div className="w-8 rounded-full">
@@ -74,7 +102,9 @@ const NotificationPage = () => {
                                     @{notification.from.username}
                                 </span>
                                 {" "}
-                                {notification.type === "follow" ? "followed you" : "liked your post"}
+                                {notification.type === "follow" && <p>followed you</p>}
+                                {notification.type === "like" && <p>liked your post</p>}
+                                {notification.type == "comment" && <p>left a comment</p>}
                             </div>
                         </Link>
                     </div>
