@@ -219,7 +219,7 @@ export const getFollowingPosts = async (req, res) => {
 
         const following = user.following;
 
-        const feedPosts = await Post.find({user: {$in: following}}).sort({createdAt: -1}).populate({
+        const feedPosts = await Post.find({user: {$in: following}}).populate({
             path: "user",
             select: "-password"
         }).populate({
@@ -244,7 +244,7 @@ export const getUserPosts = async (req, res) => {
             return res.status(404).json({ error: "User not found"})
         }
 
-        const posts = (await Post.find({user: user._id}).sort({createdAt: -1}).populate({
+        const posts = (await Post.find({user: user._id}).populate({
             path: "user",
             select: "-password"
         }).populate({

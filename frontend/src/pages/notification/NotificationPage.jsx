@@ -84,6 +84,7 @@ const NotificationPage = () => {
                 </div>
             )}
             {notifications?.length === 0 && <div className="text-center p-4 font-bold">No notifications :(</div>}
+            <div className="flex flex-col-reverse">
             {notifications?.map((notification) => (
                 <div className="border-b border-gray-700" key={notification._id}>
                     <span className="float-right p-1 text-slate-500">{formatPostDate(notification.createdAt)}</span>
@@ -110,6 +111,7 @@ const NotificationPage = () => {
                     </div>
                 </div>
             ))}
+            </div>
         </div>
     </>
   )
