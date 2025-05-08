@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from "react-router-dom"
+import { useQueryClient } from '@tanstack/react-query'
 
 import Posts from "../../components/common/Posts"
 import ProfileHeaderSkeleton from "../../components/skeletons/ProfileHeaderSkeleton"
@@ -11,12 +12,15 @@ import { FaArrowLeft } from 'react-icons/fa6'
 import { IoCalendarOutline } from 'react-icons/io5'
 import { FaLink } from "react-icons/fa"
 import { MdEdit } from "react-icons/md"
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { formatMemberSinceDate } from '../../utils/date'
+import useFollow from "../../hooks/useFollow"
+import toast from 'react-hot-toast'
 
 const ProfilePage = () => {
-    //useQuery({queryKey: ["authUser"]});
-
+    const {data:authUser} = useQuery({queryKey: ["authUser"]});
+    const {follow, isPending} = useFollow();
+    const queryClient = useQueryClient();
 
     const [coverImg, setCoverImg] = useState(null);
     const [profileImg, setProfileImg] = useState(null);
@@ -26,7 +30,6 @@ const ProfilePage = () => {
     const profileImgRef = useRef(null);
 
     const {username} = useParams();
-    const isMyProfile = true;
 
     const { data:user, isLoading, refetch, isRefetching } = useQuery({
         queryKey: ["userProfile"],
@@ -46,6 +49,45 @@ const ProfilePage = () => {
             }
         }
     })
+    const isMyProfile = authUser._id === user?._id;
+    const amIFollowing = authUser?.following.includes(user?._id);
+
+    const { mutate:updateImages, isPending:isUpdatingImages } = useMutation({
+        mutationFn: async() => {
+            try{
+                const res = await fetch(`/api/users/update`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        coverImg,
+                        profileImg,
+                    }),
+                })
+                const data = res.json();
+
+                if(!res.ok){
+                    throw new Error(data.error || "Something went wrong");
+                }
+
+                return data;
+            }
+            catch(error){
+                throw new Error(error.message)
+            }
+        },
+        onSuccess:() => {
+            toast.success("Image updated successfully");
+            Promise.all([
+                queryClient.invalidateQueries({queryKey: ["authUser"]}),
+                queryClient.invalidateQueries({queryKey: ["userProfile"]}),
+            ])
+        },
+        onError:(error) => {
+            toast.error(error.message)
+        }
+    })
 
     const handleImgChange = (e, state) => {
         const file = e.target.files[0];
@@ -62,6 +104,13 @@ const ProfilePage = () => {
     useEffect(() => {
         refetch()
     },[username, refetch])
+
+
+    function shortURL(u) {
+        var ustart = u.replace('http://', '').replace('https://', '').substr(0, 32);
+        var shorter = ustart
+        return shorter;
+    }
 
   return (
     <>
@@ -123,16 +172,18 @@ const ProfilePage = () => {
                             </div>
                         </div>
                         <div className='flex justify-end px-4 mt-5'>
-                            {isMyProfile && <EditProfileModal />}
+                            {isMyProfile && <EditProfileModal authUser={authUser} />}
                             {!isMyProfile && (
-                                <button className='btn btn-outline rounded-full btn-sm' onClick={() => alert("Followed successfully")}>
-                                    Follow
+                                <button className='btn btn-outline rounded-full btn-sm' onClick={() => follow(user?._id)}>
+                                    {isPending && "Loading..."}
+                                    {!isPending && amIFollowing && "Unfollow"}
+                                    {!isPending && !amIFollowing && "Follow"}
                                 </button>
                             )}
                             {(coverImg || profileImg) && (
                                 <button className='btn btn-primary rounded-full btn-sm text-white px-4 ml-2'
-                                    onClick={() => alert("Profile updated successfully")}>
-                                    Update Images
+                                    onClick={() => updateImages()}>
+                                    {isUpdatingImages ? "Updating..." : "Save Image"}
                                 </button>
                             )}
                         </div>
@@ -153,8 +204,8 @@ const ProfilePage = () => {
                                     <div className='flex gap-1 items-center'>
                                         <>
                                             <FaLink className='w-3 h-3 text-slate-500' />
-                                            <a href='https://example.com' target='_blank' rel='noreferrer' className='text-sm text-blue-500 hover:underline'>
-                                                example.com
+                                            <a href={user?.link} target='_blank' rel='noreferrer' className='text-sm text-blue-500 hover:underline'>
+                                                {shortURL(user?.link)}
                                             </a>
                                         </>
                                     </div>
